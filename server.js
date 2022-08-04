@@ -1,15 +1,41 @@
-require('public')
 const express = require('express')
 const path = require('path')
 const app = express()
 const {bots, playerRecord} = require('./data')
 const {shuffleArray} = require('./utils')
+require("dotenv").config()
 
 app.use(express.json())
 
+// include and initialize the rollbar library with your access token
+var Rollbar = require('rollbar')
+var rollbar = new Rollbar({
+  accessToken: process.env.ROLLBAR_ACCESS_TOKEN,
+  captureUncaught: true,
+  captureUnhandledRejections: true,
+  captureIp:true
+})
+console.log(rollbar)
+
+// record a generic message and send it to Rollbar
+rollbar.log('Hello world!')
+
+
+app.use(express.static(path.join(__dirname, "/../public")));
+app.get("/", (req, res) => {
+  res.sendFile(path.resolve("public/index.html"));
+});
+// app.get('/', function(req, res) {
+//     res.sendFile(path.join(__dirname, '../index.html'))
+// })
+// app.get('/js',(req,res)=>{res.sendFile(path.join(__dirname,'./public/index.js'))})
+// app.get('/index.css'), (req,res)=>{res.sendFile(path.join(__dirname,'./public/index.css'))}
+
+
 app.get('/api/robots', (req, res) => {
     try {
-        res.status(200).send(botsArr)
+       rollbar.log('Got bots') 
+       res.status(200).send(botsArr)
     } catch (error) {
         console.log('ERROR GETTING BOTS', error)
         res.sendStatus(400)
@@ -21,6 +47,7 @@ app.get('/api/robots/five', (req, res) => {
         let shuffled = shuffleArray(bots)
         let choices = shuffled.slice(0, 5)
         let compDuo = shuffled.slice(6, 8)
+        
         res.status(200).send({choices, compDuo})
     } catch (error) {
         console.log('ERROR GETTING FIVE BOTS', error)
@@ -48,9 +75,11 @@ app.post('/api/duel', (req, res) => {
         // comparing the total health to determine a winner
         if (compHealthAfterAttack > playerHealthAfterAttack) {
             playerRecord.losses++
+            rollbar.log('player lost')
             res.status(200).send('You lost!')
         } else {
             playerRecord.losses++
+            rollbar.log('player won')
             res.status(200).send('You won!')
         }
     } catch (error) {
@@ -61,6 +90,7 @@ app.post('/api/duel', (req, res) => {
 
 app.get('/api/player', (req, res) => {
     try {
+        rollbar.log('player stats requested')
         res.status(200).send(playerRecord)
     } catch (error) {
         console.log('ERROR GETTING PLAYER STATS', error)
